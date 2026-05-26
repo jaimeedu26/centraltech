@@ -1,0 +1,139 @@
+// CentralTech PagFácil — Schema do Banco de Dados
+// Hospedagem: Supabase (PostgreSQL)
+// ORM: Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Usuários ─────────────────────────────────────────────────
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(OPERATOR)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cashRegisters        CashRegister[]
+  transactions         Transaction[]
+  pendingCreated       PendingTransaction[] @relation("CreatedBy")
+  pendingResolved      PendingTransaction[] @relation("ResolvedBy")
+  transactionsCancelled Transaction[]       @relation("CancelledBy")
+  auditLogs            AuditLog[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+}
+
+// ── Caixa ────────────────────────────────────────────────────
+model CashRegister {
+  id               String        @id @default(uuid())
+  userId           String        @map("user_id")
+  openingAmount    Decimal       @default(0) @map("opening_amount") @db.Decimal(10, 2)
+  closingAmount    Decimal?      @map("closing_amount") @db.Decimal(10, 2)
+  expectedAmount   Decimal?      @map("expected_amount") @db.Decimal(10, 2)
+  physicalAmount   Decimal?      @map("physical_amount") @db.Decimal(10, 2)
+  differenceAmount Decimal?      @map("difference_amount") @db.Decimal(10, 2)
+  status           CashStatus    @default(OPEN)
+  openingNote      String?       @map("opening_note")
+  closingNote      String?       @map("closing_note")
+  openedAt         DateTime      @default(now()) @map("opened_at")
+  closedAt         DateTime?     @map("closed_at")
+
+  user                User                 @relation(fields: [userId], references: [id])
+  transactions        Transaction[]
+  pendingTransactions PendingTransaction[]
+
+  @@map("cash_registers")
+}
+
+enum CashStatus {
+  OPEN
+  CLOSED
+}
+
+// ── Transações ───────────────────────────────────────────────
+model Transaction {
+  id             String          @id @default(uuid())
+  cashRegisterId String          @map("cash_register_id")
+  userId         String          @map("user_id")
+  type           TransactionType
+  category       String
+  paymentMethod  String?         @map("payment_method")
+  amount         Decimal         @db.Decimal(10, 2)
+  description    String?
+  isCancelled    Boolean         @default(false) @map("is_cancelled")
+  cancelledBy    String?         @map("cancelled_by")
+  cancelledAt    DateTime?       @map("cancelled_at")
+  cancelReason   String?         @map("cancel_reason")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  cashRegister CashRegister @relation(fields: [cashRegisterId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+  cancelledByUser User?     @relation("CancelledBy", fields: [cancelledBy], references: [id])
+
+  @@map("transactions")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  BLEED
+  REINFORCE
+}
+
+// ── Pendências ───────────────────────────────────────────────
+model PendingTransaction {
+  id             String        @id @default(uuid())
+  cashRegisterId String        @map("cash_register_id")
+  createdById    String        @map("created_by")
+  clientName     String?       @map("client_name")
+  amount         Decimal       @db.Decimal(10, 2)
+  reason         String
+  status         PendingStatus @default(PENDING)
+  resolvedById   String?       @map("resolved_by")
+  resolvedAt     DateTime?     @map("resolved_at")
+  resolutionNote String?       @map("resolution_note")
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  cashRegister CashRegister @relation(fields: [cashRegisterId], references: [id])
+  createdBy    User         @relation("CreatedBy", fields: [createdById], references: [id])
+  resolvedBy   User?        @relation("ResolvedBy", fields: [resolvedById], references: [id])
+
+  @@map("pending_transactions")
+}
+
+enum PendingStatus {
+  PENDING
+  RESOLVED
+  CANCELLED
+}
+
+// ── Logs de Auditoria ────────────────────────────────────────
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  action    String
+  entity    String?
+  entityId  String?  @map("entity_id")
+  payload   Json?
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}

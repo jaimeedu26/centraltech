@@ -1,0 +1,20 @@
+# Dependências
+node_modules/
+dist/
+
+# Variáveis de ambiente — NUNCA suba para o GitHub
+.env
+
+# Logs
+*.log
+
+# Build
+.next/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vite
+.vite/
