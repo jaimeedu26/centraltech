@@ -1,25 +1,12 @@
-// src/cash/cash.module.ts
-import { Module } from '@nestjs/common';
-import { CashController } from './cash.controller';
-import { CashService } from './cash.service';
-
-@Module({ controllers: [CashController], providers: [CashService], exports: [CashService] })
-export class CashModule {}
-
-// ─────────────────────────────────────────────────────────────
-// src/cash/cash.service.ts
-// ─────────────────────────────────────────────────────────────
 import {
-  Injectable, BadRequestException, NotFoundException, ForbiddenException
+  Injectable, BadRequestException, NotFoundException
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class CashService {
   constructor(private prisma: PrismaService) {}
 
-  // Retorna caixa aberto do operador (ou null)
   async getCurrent(userId: string) {
     return this.prisma.cashRegister.findFirst({
       where: { userId, status: 'OPEN' },
@@ -30,7 +17,6 @@ export class CashService {
     });
   }
 
-  // Abre novo caixa
   async open(userId: string, dto: { openingAmount: number; openingNote?: string }) {
     const existing = await this.getCurrent(userId);
     if (existing) throw new BadRequestException('Já existe um caixa aberto para este operador.');
@@ -44,17 +30,14 @@ export class CashService {
     });
   }
 
-  // Fecha o caixa com cálculo automático
   async close(userId: string, dto: { physicalAmount: number; closingNote?: string }) {
     const cash = await this.getCurrent(userId);
     if (!cash) throw new NotFoundException('Nenhum caixa aberto encontrado.');
 
-    // Buscar todas as transações não canceladas
     const transactions = await this.prisma.transaction.findMany({
       where: { cashRegisterId: cash.id, isCancelled: false },
     });
 
-    // Fórmula de fechamento (SDD RF008)
     const entradas  = this.sumType(transactions, 'INCOME');
     const saidas    = this.sumType(transactions, 'EXPENSE');
     const sangrias  = this.sumType(transactions, 'BLEED');
@@ -63,14 +46,12 @@ export class CashService {
     const expectedAmount = Number(cash.openingAmount) + entradas + reforcos - saidas - sangrias;
     const differenceAmount = dto.physicalAmount - expectedAmount;
 
-    // Se houver diferença, nota de fechamento é obrigatória
     if (differenceAmount !== 0 && !dto.closingNote) {
       throw new BadRequestException(
         `Diferença de R$ ${differenceAmount.toFixed(2)} detectada. Justificativa obrigatória no campo closingNote.`
       );
     }
 
-    // Verificar pendências em aberto (alerta, não bloqueia)
     const pendencias = await this.prisma.pendingTransaction.count({
       where: { cashRegisterId: cash.id, status: 'PENDING' },
     });
@@ -94,7 +75,6 @@ export class CashService {
     }));
   }
 
-  // Histórico de caixas (admin)
   async history(filters: { userId?: string; dateFrom?: string; dateTo?: string }) {
     return this.prisma.cashRegister.findMany({
       where: {
@@ -107,7 +87,6 @@ export class CashService {
     });
   }
 
-  // Resumo de um caixa específico (admin)
   async summary(id: string) {
     const cash = await this.prisma.cashRegister.findUnique({
       where: { id },
@@ -124,10 +103,7 @@ export class CashService {
     const sangrias = this.sumType(cash.transactions, 'BLEED');
     const reforcos = this.sumType(cash.transactions, 'REINFORCE');
 
-    return {
-      ...cash,
-      summary: { entradas, saidas, sangrias, reforcos },
-    };
+    return { ...cash, summary: { entradas, saidas, sangrias, reforcos } };
   }
 
   private sumType(transactions: any[], type: string) {

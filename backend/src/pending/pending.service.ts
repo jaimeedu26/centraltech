@@ -1,15 +1,3 @@
-// src/pending/pending.module.ts
-import { Module } from '@nestjs/common';
-import { PendingController } from './pending.controller';
-import { PendingService } from './pending.service';
-import { CashModule } from '../cash/cash.module';
-
-@Module({ imports: [CashModule], controllers: [PendingController], providers: [PendingService] })
-export class PendingModule {}
-
-// ─────────────────────────────────────────────────────────────
-// src/pending/pending.service.ts
-// ─────────────────────────────────────────────────────────────
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CashService } from '../cash/cash.service';
@@ -47,7 +35,6 @@ export class PendingService {
     const cash = await this.cashService.getCurrent(userId);
     if (!cash) throw new BadRequestException('Nenhum caixa aberto para registrar a resolução.');
 
-    // Gera transação de entrada automaticamente ao resolver
     await this.prisma.transaction.create({
       data: {
         cashRegisterId: cash.id,

@@ -1,4 +1,3 @@
-// src/reports/reports.controller.ts
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
@@ -21,15 +20,7 @@ export class ReportsController {
   }
 
   @Get('monthly')
-  monthly(
-    @Query('year') year: string,
-    @Query('month') month: string,
-    @Query() filters: any,
-  ) {
-    return this.service.monthly(
-      parseInt(year) || new Date().getFullYear(),
-      parseInt(month) || new Date().getMonth() + 1,
-      filters,
-    );
+  monthly(@Query('year') year: string, @Query('month') month: string, @Query() filters: any) {
+    return this.service.monthly(parseInt(year) || new Date().getFullYear(), parseInt(month) || new Date().getMonth() + 1, filters);
   }
 }

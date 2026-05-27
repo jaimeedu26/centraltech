@@ -1,15 +1,3 @@
-// src/dashboard/dashboard.module.ts
-import { Module } from '@nestjs/common';
-import { DashboardController } from './dashboard.controller';
-import { DashboardService } from './dashboard.service';
-import { CashModule } from '../cash/cash.module';
-
-@Module({ imports: [CashModule], controllers: [DashboardController], providers: [DashboardService] })
-export class DashboardModule {}
-
-// ─────────────────────────────────────────────────────────────
-// src/dashboard/dashboard.service.ts
-// ─────────────────────────────────────────────────────────────
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CashService } from '../cash/cash.service';
@@ -38,13 +26,11 @@ export class DashboardService {
     const sangrias  = transactions.filter(t => t.type === 'BLEED').reduce((s, t) => s + Number(t.amount), 0);
     const reforcos  = transactions.filter(t => t.type === 'REINFORCE').reduce((s, t) => s + Number(t.amount), 0);
 
-    // Agrupamento por categoria
     const porCategoria: Record<string, number> = {};
     transactions.filter(t => t.type === 'INCOME').forEach(t => {
       porCategoria[t.category] = (porCategoria[t.category] || 0) + Number(t.amount);
     });
 
-    // Agrupamento por forma de pagamento
     const porFormaPgto: Record<string, number> = {};
     transactions.filter(t => t.type === 'INCOME' && t.paymentMethod).forEach(t => {
       const m = t.paymentMethod!;
@@ -74,29 +60,5 @@ export class DashboardService {
       include: { cashRegister: { include: { user: { select: { name: true } } } } },
     });
     return transactions;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// src/dashboard/dashboard.controller.ts
-// ─────────────────────────────────────────────────────────────
-import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard, Roles } from '../auth/guards/roles.guard';
-import { DashboardService } from './dashboard.service';
-
-@UseGuards(JwtAuthGuard)
-@Controller('dashboard')
-export class DashboardController {
-  constructor(private service: DashboardService) {}
-
-  @Get('today')
-  today(@Request() req) { return this.service.today(req.user.id, req.user.role); }
-
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
-  @Get('summary')
-  summary(@Query('dateFrom') from: string, @Query('dateTo') to: string) {
-    return this.service.summary(from, to);
   }
 }

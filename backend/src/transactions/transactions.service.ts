@@ -1,16 +1,4 @@
-// src/transactions/transactions.module.ts
-import { Module } from '@nestjs/common';
-import { TransactionsController } from './transactions.controller';
-import { TransactionsService } from './transactions.service';
-import { CashModule } from '../cash/cash.module';
-
-@Module({ imports: [CashModule], controllers: [TransactionsController], providers: [TransactionsService] })
-export class TransactionsModule {}
-
-// ─────────────────────────────────────────────────────────────
-// src/transactions/transactions.service.ts
-// ─────────────────────────────────────────────────────────────
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CashService } from '../cash/cash.service';
 
@@ -22,7 +10,6 @@ export class TransactionsService {
   ) {}
 
   async findAll(userId: string, role: string) {
-    // Admin vê todas, operador vê só do caixa atual
     if (role === 'ADMIN') {
       return this.prisma.transaction.findMany({
         include: { user: { select: { name: true } }, cashRegister: true },
@@ -71,7 +58,6 @@ export class TransactionsService {
     return t;
   }
 
-  // Apenas admin pode cancelar — soft delete com log obrigatório
   async cancel(id: string, adminId: string, reason: string) {
     const t = await this.findOne(id);
     if (t.isCancelled) throw new BadRequestException('Transação já cancelada.');
