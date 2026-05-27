@@ -22,7 +22,11 @@ async function bootstrap() {
   );
 
   const port = process.env.PORT || 10000;
-  await app.listen(port, '0.0.0.0');
+  const server = await app.listen(port, '0.0.0.0');
+  
+  server.keepAliveTimeout = 120000;
+  server.headersTimeout = 120000;
+  
   console.log(`🚀 API rodando na porta ${port}`);
 }
 bootstrap();
